@@ -1,0 +1,66 @@
+# Run with: fga model test --tests internal/authz/model.fga.yaml
+name: docshare authorization model
+model_file: ./model.fga
+
+tuples:
+  # acme: alice owns it, bob is a plain member
+  - {user: user:alice, relation: owner, object: organization:acme}
+  - {user: user:bob, relation: member, object: organization:acme}
+  # platform team inside acme, dave is on it
+  - {user: organization:acme, relation: parent, object: team:platform}
+  - {user: user:dave, relation: member, object: team:platform}
+  # bob's folder + documents
+  - {user: organization:acme, relation: parent, object: folder:eng}
+  - {user: user:bob, relation: owner, object: folder:eng}
+  - {user: folder:eng, relation: parent, object: document:spec}
+  - {user: user:bob, relation: owner, object: document:spec}
+  - {user: team:platform#member, relation: viewer, object: document:spec}
+  - {user: folder:eng, relation: parent, object: document:faq}
+  - {user: user:bob, relation: owner, object: document:faq}
+  - {user: "user:*", relation: viewer, object: document:faq}
+
+tests:
+  - name: org owner inherits admin rights over everything below the org
+    check:
+      - user: user:alice
+        object: document:spec
+        assertions: {can_view: true, can_edit: true, can_share: true, can_delete: true}
+      - user: user:alice
+        object: organization:acme
+        assertions: {admin: true, member: true, can_manage_members: true}
+
+  - name: document owner has full control; plain org membership alone grants nothing
+    check:
+      - user: user:bob
+        object: document:spec
+        assertions: {can_view: true, can_edit: true, can_delete: true}
+      - user: user:bob
+        object: organization:acme
+        assertions: {can_create_folder: true, can_manage_members: false}
+
+  - name: team members get exactly the access granted to the team userset
+    check:
+      - user: user:dave
+        object: document:spec
+        assertions: {can_view: true, can_edit: false, can_share: false, can_delete: false}
+      - user: user:dave
+        object: document:faq
+        assertions: {can_edit: false}
+
+  - name: outsiders only see publicly shared documents (wildcard)
+    check:
+      - user: user:carol
+        object: document:spec
+        assertions: {can_view: false, can_edit: false}
+      - user: user:carol
+        object: document:faq
+        assertions: {can_view: true, can_edit: false}
+    list_objects:
+      - user: user:carol
+        type: document
+        assertions:
+          can_view: [document:faq]
+      - user: user:alice
+        type: document
+        assertions:
+          can_view: [document:faq, document:spec]

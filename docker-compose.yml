@@ -1,0 +1,53 @@
+# Full local stack: app + OpenFGA (Postgres-backed, so authorization data survives restarts).
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  openfga-migrate:
+    image: openfga/openfga:latest
+    command: migrate
+    environment: &fga-db
+      OPENFGA_DATASTORE_ENGINE: postgres
+      OPENFGA_DATASTORE_URI: postgres://postgres:password@postgres:5432/postgres?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  openfga:
+    image: openfga/openfga:latest
+    command: run
+    environment: *fga-db
+    ports:
+      - "8080:8080"   # HTTP API
+      - "3000:3000"   # Playground UI
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+
+  app:
+    build: .
+    environment:
+      OPENFGA_API_URL: http://openfga:8080
+      DB_PATH: /data/docvault.db
+      # Development value only. Generate a real one: openssl rand -base64 48
+      JWT_SECRET: dev-only-secret-change-me-0123456789abcdef
+    volumes:
+      - appdata:/data
+    ports:
+      - "8081:8081"
+    depends_on:
+      - openfga
+
+volumes:
+  pgdata:
+  appdata:

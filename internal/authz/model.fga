@@ -1,0 +1,41 @@
+model
+  schema 1.1
+
+type user
+
+type organization
+  relations
+    define owner: [user]
+    define admin: [user] or owner
+    define member: [user] or admin
+    define can_manage_members: admin
+    define can_manage_teams: admin
+    define can_create_folder: member
+
+type team
+  relations
+    define parent: [organization]
+    define admin: [user] or admin from parent
+    define member: [user] or admin
+
+type folder
+  relations
+    define parent: [organization]
+    define owner: [user]
+    define editor: [user, team#member] or owner or admin from parent
+    define viewer: [user, team#member] or editor
+    define can_view: viewer
+    define can_edit: editor
+    define can_create_document: editor
+    define can_share: owner or admin from parent
+
+type document
+  relations
+    define parent: [folder]
+    define owner: [user]
+    define editor: [user, team#member] or owner or editor from parent
+    define viewer: [user, team#member, user:*] or editor or viewer from parent
+    define can_view: viewer
+    define can_edit: editor
+    define can_share: owner or can_share from parent
+    define can_delete: owner or can_share from parent

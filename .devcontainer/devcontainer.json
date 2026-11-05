@@ -1,0 +1,16 @@
+{
+  "name": "docvault",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspaces/project1",
+  "forwardPorts": [8080, 3000, 8081],
+  "containerEnv": {
+    "OPENFGA_API_URL": "http://openfga:8080"
+  },
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "vscode": {
+      "extensions": ["golang.go", "openfga.openfga-vscode"]
+    }
+  }
+}

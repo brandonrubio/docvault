@@ -1,0 +1,13 @@
+services:
+  dev:
+    # Official Go image (Go toolchain preinstalled).
+    image: golang:1.26
+    volumes:
+      - ..:/workspaces/project1:cached
+    command: sleep infinity
+    depends_on:
+      - openfga
+
+  openfga:
+    image: openfga/openfga:latest
+    command: run   # in-memory datastore; resets on restart

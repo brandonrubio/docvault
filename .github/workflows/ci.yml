@@ -1,0 +1,18 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - name: Start OpenFGA (in-memory)
+        run: |
+          docker run -d --name openfga -p 8080:8080 openfga/openfga:latest run
+          for i in $(seq 1 30); do curl -sf localhost:8080/healthz && break; sleep 1; done
+      - run: go vet ./...
+      - run: OPENFGA_API_URL=http://localhost:8080 go test -race ./...
+      - name: Model tests
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src openfga/cli:latest model test --tests internal/authz/model.fga.yaml
